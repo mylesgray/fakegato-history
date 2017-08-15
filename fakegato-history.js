@@ -108,11 +108,12 @@ module.exports = function(pHomebridge) {
             this.accessoryType=accessoryType;
             this.nextAvailableEntry = 1;
             this.history = [];
-            this.maxHistory = 100;
+            this.maxHistory = 4032; //4 weeks
             this.currentEntry = 1;
             this.transfer=false;
             this.setTime=true;
             this.refTime=0;
+            this.emptyingHistory=false;
 
             this.addCharacteristic(S2R1Characteristic);
                 
@@ -186,7 +187,20 @@ module.exports = function(pHomebridge) {
             if (address!=0)
                 this.currentEntry = address;
             else
-                this.currentEntry = 1;
+                if (this.emptyingHistory==false)
+                {
+                    this.emptyingHistory =  true;
+                    this.getCharacteristic(S2R1Characteristic)
+                        .setValue(hexToBase64(numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.maxHistory),4) +'ed0f00000000000000000101'));
+                    console.log("Next available entry " + this.accessoryType + ": " + this.maxHistory.toString(16));
+                    console.log("116 " + this.accessoryType + ": " + numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.maxHistory),4) +'ed0f00000000000000000101');
+                    
+                }
+                else
+                {    
+                    this.currentEntry = 1;
+                    this.emptyingHistory =  false;
+                }
             this.transfer=true;
         }
         
@@ -217,11 +231,13 @@ module.exports = function(pHomebridge) {
                 this.nextAvailableEntry = 2;
             }
 
-            this.getCharacteristic(S2R1Characteristic)
-                .setValue(hexToBase64(numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.nextAvailableEntry),4) +'ed0f00000000000000000101'));
-            console.log("Next available entry " + this.accessoryType + ": " + this.nextAvailableEntry.toString(16));
-            console.log("116 " + this.accessoryType + ": " + numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.nextAvailableEntry),4) +'ed0f00000000000000000101');
-
+            if (this.emptyingHistory == false)
+            {
+                this.getCharacteristic(S2R1Characteristic)
+                    .setValue(hexToBase64(numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.nextAvailableEntry),4) +'ed0f00000000000000000101'));
+                console.log("Next available entry " + this.accessoryType + ": " + this.nextAvailableEntry.toString(16));
+                console.log("116 " + this.accessoryType + ": " + numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.nextAvailableEntry),4) +'ed0f00000000000000000101');
+            }
         }
         
         setCurrentS2W1(val, callback) {

@@ -86,8 +86,9 @@ module.exports = function(pHomebridge) {
     }
 
     class FakeGatoHistoryService extends homebridge.hap.Service {
-        constructor(accessoryType) {
-            super("History", 'E863F007-079E-48FF-8F27-9C2605A29F52');
+        constructor(accessoryType, accessory) {
+            super(accessory.name + " History", 'E863F007-079E-48FF-8F27-9C2605A29F52');
+            this.log = accessory.log;
             switch (accessoryType)
             {
                 case "weather":
@@ -126,7 +127,7 @@ module.exports = function(pHomebridge) {
                             this.history[this.currentEntry].pressure==0 &&
                             this.history[this.currentEntry].humidity==0) || (this.history[this.currentEntry].power==0xFFFF) || (this.setTime==true))
                         {	
-                            console.log.debug("Data "+ this.accessoryType + ": 15" + numToHex(swap16(this.currentEntry),4) + "0000 0000 0000 81" + numToHex(swap32(this.refTime),8) +"0000 0000 00 0000");
+                            this.log.debug("Data "+ this.accessoryType + ": 15" + numToHex(swap16(this.currentEntry),4) + "0000 0000 0000 81" + numToHex(swap32(this.refTime),8) +"0000 0000 00 0000");
                             callback(null,hexToBase64('15' + numToHex(swap16(this.currentEntry),4) +' 0000 0000 0000 81' + numToHex(swap32(this.refTime),8) + '0000 0000 00 0000'));
                             this.setTime=false;
                         }
@@ -134,7 +135,7 @@ module.exports = function(pHomebridge) {
                             switch (this.accessoryType)
                             {
                                 case "weather":
-                            	    console.log.debug("Data "+ this.accessoryType + ": 10 " + numToHex(swap16(this.currentEntry),4) + " 0000 "
+                            	    this.log.debug("Data "+ this.accessoryType + ": 10 " + numToHex(swap16(this.currentEntry),4) + " 0000 "
                                             + numToHex(swap32(this.history[this.currentEntry].time-this.refTime-978307200),8)
                                             + this.accessoryType117
                                             + numToHex(swap16(this.history[this.currentEntry].temp*100),4) 
@@ -148,7 +149,7 @@ module.exports = function(pHomebridge) {
                                             + numToHex(swap16(this.history[this.currentEntry].pressure*10),4)));
                                     break;
                                 case "energy":
-                            	    console.log.debug("Data "+ this.accessoryType + ": 14 " + numToHex(swap16(this.currentEntry),4) + " 0000 "
+                            	    this.log.debug("Data "+ this.accessoryType + ": 14 " + numToHex(swap16(this.currentEntry),4) + " 0000 "
                                             + numToHex(swap32(this.history[this.currentEntry].time-this.refTime-978307200),8)
                                             + this.accessoryType117
                                             + "0000 0000" 
@@ -192,8 +193,8 @@ module.exports = function(pHomebridge) {
                     this.emptyingHistory =  true;
                     this.getCharacteristic(S2R1Characteristic)
                         .setValue(hexToBase64(numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.maxHistory),4) +'ed0f00000000000000000101'));
-                    console.log.debug("Next available entry " + this.accessoryType + ": " + this.maxHistory.toString(16));
-                    console.log.debug("116 " + this.accessoryType + ": " + numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.maxHistory),4) +'ed0f00000000000000000101');
+                    this.log.debug("Next available entry " + this.accessoryType + ": " + this.maxHistory.toString(16));
+                    this.log.debug("116 " + this.accessoryType + ": " + numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.maxHistory),4) +'ed0f00000000000000000101');
                     
                 }
                 else
@@ -235,21 +236,21 @@ module.exports = function(pHomebridge) {
             {
                 this.getCharacteristic(S2R1Characteristic)
                     .setValue(hexToBase64(numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.nextAvailableEntry),4) +'ed0f00000000000000000101'));
-                console.log.debug("Next available entry " + this.accessoryType + ": " + this.nextAvailableEntry.toString(16));
-                console.log.debug("116 " + this.accessoryType + ": " + numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.nextAvailableEntry),4) +'ed0f00000000000000000101');
+                this.log.debug("Next available entry " + this.accessoryType + ": " + this.nextAvailableEntry.toString(16));
+                this.log.debug("116 " + this.accessoryType + ": " + numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.nextAvailableEntry),4) +'ed0f00000000000000000101');
             }
         }
         
         setCurrentS2W1(val, callback) {
             callback(null,val);
-            console.log.debug("Data request " + this.accessoryType + ": "+ base64ToHex(val));
+            this.log.debug("Data request " + this.accessoryType + ": "+ base64ToHex(val));
             var valHex = base64ToHex(val);
             var substring = valHex.substring(4,12);
             var valInt = parseInt(substring,16);
             var address = swap32(valInt);
             var hexAddress= address.toString('16');
 
-            console.log.debug("Address requested " + this.accessoryType + ": "+ hexAddress);
+            this.log.debug("Address requested " + this.accessoryType + ": "+ hexAddress);
             if (this.transfer==false)
             {
                 //this.transfer=true;
@@ -258,7 +259,7 @@ module.exports = function(pHomebridge) {
         }
         
         setCurrentS2W2(val, callback) {
-            console.log.debug("Clock adjust: "+ base64ToHex(val));
+            this.log.debug("Clock adjust: "+ base64ToHex(val));
             callback(null,val);
         }
 

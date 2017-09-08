@@ -2,6 +2,7 @@
 
 var homebridge;
 var Characteristic;
+const moment = require('moment');
 
 module.exports = function(pHomebridge) {
 	if (pHomebridge && !homebridge) {
@@ -109,7 +110,8 @@ module.exports = function(pHomebridge) {
             this.accessoryType=accessoryType;
             this.nextAvailableEntry = 1;
             this.history = [];
-            this.maxHistory = 4032; //4 weeks
+            this.maxHistory = 100; //4032; //4 weeks
+            this.usedMemory = 1;
             this.currentEntry = 1;
             this.transfer=false;
             this.setTime=true;
@@ -192,9 +194,9 @@ module.exports = function(pHomebridge) {
                 {
                     this.emptyingHistory =  true;
                     this.getCharacteristic(S2R1Characteristic)
-                        .setValue(hexToBase64(numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.maxHistory),4) +'ed0f00000000000000000101'));
-                    this.log.debug("Next available entry " + this.accessoryType + ": " + this.maxHistory.toString(16));
-                    this.log.debug("116 " + this.accessoryType + ": " + numToHex(swap32(entry.time-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.maxHistory),4) +'ed0f00000000000000000101');
+                        .setValue(hexToBase64(numToHex(swap32(moment().unix()-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.usedMemory),4) +'ed0f00000000000000000101'));
+                    this.log.debug("Next available entry " + this.accessoryType + ": " + this.usedMemory.toString(16));
+                    this.log.debug("116 " + this.accessoryType + ": " + numToHex(swap32(moment().unix()-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.usedMemory),4) +'ed0f00000000000000000101');
                     
                 }
                 else
@@ -222,9 +224,13 @@ module.exports = function(pHomebridge) {
                                 break;
                         }
                     this.nextAvailableEntry++;
+                    if (this.usedMemory<this.maxHistory)
+                    this.usedMemory++;
                 }
                 this.history[this.nextAvailableEntry] = (entry);
                 this.nextAvailableEntry++;
+                if (this.usedMemory<this.maxHistory)
+                    this.usedMemory++;
             }
             else
             {

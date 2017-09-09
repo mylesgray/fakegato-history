@@ -110,7 +110,7 @@ module.exports = function(pHomebridge) {
             this.accessoryType=accessoryType;
             this.nextAvailableEntry = 1;
             this.history = [];
-            this.maxHistory = 100; //4032; //4 weeks
+            this.maxHistory = 20; //4032; //4 weeks
             this.usedMemory = 1;
             this.currentEntry = 1;
             this.transfer=false;
@@ -122,7 +122,7 @@ module.exports = function(pHomebridge) {
                 
             this.addCharacteristic(S2R2Characteristic)
                 .on('get', (callback) => {
-                    if ((this.currentEntry<this.nextAvailableEntry) && (this.transfer==true))
+                    if ((((this.currentEntry<this.nextAvailableEntry) && (this.emptyingHistory==false)) || ((this.currentEntry<this.usedMemory) && (this.emptyingHistory==true))) && (this.transfer==true))
                     {
                         
                         if ((this.history[this.currentEntry].temp==0 &&
@@ -166,10 +166,19 @@ module.exports = function(pHomebridge) {
                                     break;
                             }
                         this.currentEntry++;
+                        if (((this.currentEntry==this.nextAvailableEntry) && (this.emptyingHistory==false)) || ((this.currentEntry==this.usedMemory) && (this.emptyingHistory==true)))
+                            this.transfer=false;
+                        if ((this.currentEntry==this.usedMemory) && (this.emptyingHistory==true))
+                        {
+                            this.log.debug("Fisnished emptying history");
+                            this.getCharacteristic(S2R1Characteristic)
+                                .setValue(hexToBase64(numToHex(swap32(moment().unix()-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.nextAvailableEntry),4) +'ed0f00000000000000000101'));
+                            this.log.debug("Next available entry (emptying history)" + this.accessoryType + ": " + this.nextAvailableEntry.toString(16));
+                            this.log.debug("116 " + this.accessoryType + ": " + numToHex(swap32(moment().unix()-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.nextAvailableEntry),4) +'ed0f00000000000000000101');
+                        }
                     }
                     else
                     {
-                        this.transfer=false;
                         callback(null,hexToBase64('00'));
                     }
                     
@@ -187,24 +196,33 @@ module.exports = function(pHomebridge) {
 
         sendHistory(address){
             var hexAddress= address.toString('16');
+            //this.transfer=true;
             if (address!=0)
-                this.currentEntry = address;
+               {
+                 this.transfer=true;
+                 this.currentEntry = address;  
+                 //this.emptyingHistory=false;
+               } 
             else
                 if (this.emptyingHistory==false)
                 {
+                    this.log.debug("Emptying history");
+                    this.currentEntry = this.usedMemory-1;
                     this.emptyingHistory =  true;
                     this.getCharacteristic(S2R1Characteristic)
                         .setValue(hexToBase64(numToHex(swap32(moment().unix()-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.usedMemory),4) +'ed0f00000000000000000101'));
-                    this.log.debug("Next available entry " + this.accessoryType + ": " + this.usedMemory.toString(16));
+                    this.log.debug("Next available entry (emptying history)" + this.accessoryType + ": " + this.usedMemory.toString(16));
                     this.log.debug("116 " + this.accessoryType + ": " + numToHex(swap32(moment().unix()-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.usedMemory),4) +'ed0f00000000000000000101');
                     
                 }
                 else
                 {    
+                    this.transfer=true;
+                    this.log.debug("Reset history");
+                    this.emptyingHistory=false;
                     this.currentEntry = 1;
-                    this.emptyingHistory =  false;
                 }
-            this.transfer=true;
+            
         }
         
         //in order to be consistent with Eve, entry address start from 1
@@ -259,7 +277,6 @@ module.exports = function(pHomebridge) {
             this.log.debug("Address requested " + this.accessoryType + ": "+ hexAddress);
             if (this.transfer==false)
             {
-                //this.transfer=true;
                 this.sendHistory(address);
             }
         }

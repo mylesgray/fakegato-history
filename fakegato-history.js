@@ -110,7 +110,7 @@ module.exports = function(pHomebridge) {
             this.accessoryType=accessoryType;
             this.nextAvailableEntry = 1;
             this.history = [];
-            this.maxHistory = 20; //4032; //4 weeks
+            this.maxHistory = 50; //4032; //4 weeks
             this.usedMemory = 1;
             this.currentEntry = 1;
             this.transfer=false;
@@ -207,8 +207,9 @@ module.exports = function(pHomebridge) {
                 if (this.emptyingHistory==false)
                 {
                     this.log.debug("Emptying history");
-                    this.currentEntry = this.usedMemory-1;
+                    //this.currentEntry = this.usedMemory-1;
                     this.emptyingHistory =  true;
+                    this.setTime=true;
                     this.getCharacteristic(S2R1Characteristic)
                         .setValue(hexToBase64(numToHex(swap32(moment().unix()-this.refTime-978307200),8) + '00000000' + numToHex(swap32(this.refTime),8) + '0401020202' + this.accessoryType116 +'020f03' + numToHex(swap16(this.usedMemory),4) +'ed0f00000000000000000101'));
                     this.log.debug("Next available entry (emptying history)" + this.accessoryType + ": " + this.usedMemory.toString(16));
@@ -252,8 +253,18 @@ module.exports = function(pHomebridge) {
             }
             else
             {
-                this.history[1] = (entry);
-                this.nextAvailableEntry = 2;
+                this.refTime=entry.time-978307200;
+                switch (this.accessoryType)
+                    {
+                        case "weather":
+                            this.history[1]= {time: entry.time, temp:0, pressure:0, humidity:0};
+                            break;
+                        case "energy":
+                            this.history[1]= {time: entry.time, power:0xFFFF};
+                            break;
+                    }
+                this.history[2] = (entry);
+                this.nextAvailableEntry = 3;
             }
 
             if (this.emptyingHistory == false)
